@@ -40,7 +40,7 @@ class Finding:
         line: int | None = None,
         evidence: str | None = None,
         recommendation: str | None = None,
-    ) -> "Finding":
+    ) -> Finding:
         relative = None
         if path is not None:
             try:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from analytics_release_gate import __version__
 from analytics_release_gate.audit import audit_repository

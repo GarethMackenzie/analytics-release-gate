@@ -81,7 +81,6 @@ python -m venv .venv
 pip install -e ".[dev]"
 pytest
 ruff check .
-ruff format --check .
 mypy src
 ```
 

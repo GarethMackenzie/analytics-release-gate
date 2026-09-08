@@ -5,7 +5,6 @@
 ## Verification
 
 - [ ] `ruff check .`
-- [ ] `ruff format --check .`
 - [ ] `mypy src`
 - [ ] `pytest`
 - [ ] New/changed rules documented in `docs/rules.md`

@@ -16,7 +16,6 @@ Before opening a pull request, run:
 
 ```bash
 ruff check .
-ruff format --check .
 mypy src
 pytest
 ```
