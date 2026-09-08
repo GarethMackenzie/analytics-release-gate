@@ -1,0 +1,21 @@
+name: Feature request
+description: Propose a rule or product capability
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Example repository pattern or evidence
+      description: Explain how the proposed behavior can be tested without private data.
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Suggested approach
