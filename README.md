@@ -6,10 +6,12 @@ Analytics Release Gate is an open-source CLI for auditing analytics and Power BI
 
 > **Status:** v0.1 is an alpha foundation. Rules are intentionally conservative and every heuristic is documented. The tool does not claim to prove analytical truth, business correctness or Power BI Desktop runtime validity.
 
+[PyPI](https://pypi.org/project/analytics-release-gate/) · [v0.1.0 release](https://github.com/GarethMackenzie/analytics-release-gate/releases/tag/v0.1.0) · [Issues](https://github.com/GarethMackenzie/analytics-release-gate/issues)
+
 ## Quick start
 
 ```bash
-pip install -e .
+pip install analytics-release-gate
 argate audit .
 ```
 
