@@ -1,0 +1,70 @@
+name: PyPI smoke test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/pypi-smoke-test.yml
+
+permissions:
+  contents: read
+
+jobs:
+  external-install:
+    name: External install (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package from public PyPI
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir --index-url https://pypi.org/simple analytics-release-gate==0.1.0
+
+      - name: Verify installed distribution
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+
+          installed = version("analytics-release-gate")
+          assert installed == "0.1.0", installed
+          print(f"Installed analytics-release-gate {installed} from PyPI")
+          PY
+
+      - name: Verify CLI entry point
+        run: |
+          test "$(argate --version)" = "argate 0.1.0"
+          argate --help | grep -q "Audit analytics repositories before release."
+
+      - name: Verify release-gate behavior on an empty external project
+        run: |
+          test_root="$(mktemp -d)"
+          set +e
+          argate audit "$test_root" --format json > "$test_root/report.json"
+          exit_code=$?
+          set -e
+
+          test "$exit_code" -eq 1
+
+          python - "$test_root/report.json" <<'PY'
+          import json
+          import sys
+
+          report_path = sys.argv[1]
+          with open(report_path, encoding="utf-8") as handle:
+              report = json.load(handle)
+
+          assert report["release_result"] == "FAIL", report
+          rule_ids = {item["rule_id"] for item in report["findings"]}
+          assert "REP001" in rule_ids, rule_ids
+          assert "REP002" in rule_ids, rule_ids
+          print("External audit returned the expected release blockers")
+          PY
