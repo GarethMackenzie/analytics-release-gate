@@ -18,8 +18,11 @@ argate audit .
 Machine-readable output:
 
 ```bash
-argate audit . --format json --output release-gate.json
+argate audit . --format json --output ../release-gate.json
 ```
+
+Report files must be written outside the audited repository so repository-controlled symlinks
+cannot redirect the write.
 
 ## Current rules
 

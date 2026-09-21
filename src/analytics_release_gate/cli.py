@@ -31,6 +31,24 @@ def _render(format_name: str, report: AuditReport) -> str:
     return console.render(report)
 
 
+def _is_within(path: Path, directory: Path) -> bool:
+    try:
+        path.relative_to(directory)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_output_path(output: Path, root: Path) -> None:
+    output = output if output.is_absolute() else Path.cwd() / output
+    lexical_root = root if root.is_absolute() else Path.cwd() / root
+    resolved_root = root.resolve()
+
+    for component in (output, *output.parents):
+        if _is_within(component, lexical_root) or _is_within(component.resolve(), resolved_root):
+            raise ValueError("output path must be outside the audited repository")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -40,9 +58,16 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
+        if args.output:
+            _validate_output_path(args.output, root)
         config = load_config(root.resolve(), args.config)
         report = audit_repository(root, config)
         rendered = _render(args.format, report)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(rendered + "\n", encoding="utf-8")
+        else:
+            print(rendered)
     except (OSError, ValueError) as exc:
         print(f"argate: configuration/input error: {exc}", file=sys.stderr)
         return 2
@@ -50,11 +75,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"argate: internal error: {exc}", file=sys.stderr)
         return 3
 
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(rendered + "\n", encoding="utf-8")
-    else:
-        print(rendered)
     return 1 if report.has_failures else 0
 
 
