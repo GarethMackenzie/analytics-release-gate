@@ -1,25 +1,71 @@
 # Analytics Release Gate
 
-**Catch analytics-engineering defects before they become release defects.**
+**Help analytics engineers catch supported repository and Power BI project defects before release.**
 
-Analytics Release Gate is an open-source CLI for auditing analytics and Power BI repositories. It focuses on release readiness that is easy to miss in manual review: repository hygiene, PBIP/PBIR/TMDL integrity, risky DAX literals, machine-specific paths, documentation links, security signals and reproducibility controls.
+**Business question:** Which detectable defects should block this analytics release, and which findings require human review?
 
-> **Status:** v0.1 is an alpha foundation. Rules are intentionally conservative and every heuristic is documented. The tool does not claim to prove analytical truth, business correctness or Power BI Desktop runtime validity.
+> [!IMPORTANT]
+> **Decision supported**
+> A maintainer decides whether to block a release or investigate a finding using stable rule IDs, severity and console or JSON evidence.
+> Exit `1` means blocking findings; `2` means input/configuration error; `3` means internal failure. Exit `0` means no FAIL findings, not proof of business correctness. Warnings, suppressions and manual checks still require review.
 
-[PyPI](https://pypi.org/project/analytics-release-gate/) · [v0.1.0 release](https://github.com/GarethMackenzie/analytics-release-gate/releases/tag/v0.1.0) · [Issues](https://github.com/GarethMackenzie/analytics-release-gate/issues)
+**Status:** v0.1 alpha. **Scope:** static repository checks. **External impact:** not yet measured.
 
-## Quick start
+[Source and reference documentation](https://github.com/GarethMackenzie/analytics-release-gate) · [Published package](https://pypi.org/project/analytics-release-gate/)
 
-```bash
-pip install analytics-release-gate
+## Reproduce the audit
+
+```sh
+pip install analytics-release-gate==0.1.0
 argate audit .
-```
-
-Machine-readable output:
-
-```bash
 argate audit . --format json --output release-gate.json
 ```
+
+Run from the repository under review. Retain its commit, tool version, configuration and exit status alongside the report. These commands audit the current directory; their results depend on its contents.
+
+## See the result
+
+| Capture | Composition | Caption |
+|---|---|---|
+| `docs/images/release-blocked.png` | Actual terminal run against a controlled defective fixture; visible rule ID and exit status | “Synthetic fixture; intentionally blocked release; tool version …” |
+| `docs/images/release-review.png` | Same fixture after a documented repair; retain outstanding warnings | “Supported checks passed; manual review remains required.” |
+| `docs/images/audit-report.png` | Real JSON output with sensitive paths redacted | “Machine-readable findings from commit …” |
+
+<!-- Enable after capturing actual output:
+![A controlled defect blocks release with an actionable rule ID](docs/images/release-blocked.png)
+-->
+
+```mermaid
+flowchart LR
+    A[Repository and configuration] --> B[Static checks]
+    B --> C[Findings with rule IDs]
+    C --> D[Console / JSON]
+    C --> E[Exit status]
+    D --> F[Maintainer review]
+    E --> G[CI release decision]
+```
+
+## Architectural decisions log
+
+The following records summarize documented v0.1 boundaries retrospectively; they do not claim a new implementation or historical ADR approval.
+
+| Decision | Chosen approach | Alternative not adopted | Cost accepted | Revisit trigger |
+|---|---|---|---|---|
+| Build execution | Do not execute arbitrary repository build commands | Execute builds directly during every audit | Generated-output drift remains a manual check | A sandboxed, resource-bounded build contract exists |
+| Semantic validation | Conservative, documented DAX heuristics | Claim complete semantic validation from static text checks | False positives and undetected business errors remain possible | Labeled fixtures demonstrate an improved validator's precision and coverage |
+| Exceptions | Explicit rule-ID exclusions | Silent auto-suppression | Exclusions can remove useful coverage and require review | External evaluations show a need for owner, reason and expiry metadata |
+
+## What would prove value?
+
+Evaluate release candidates against an independently adjudicated defect set. Report actionable precision, false-negative rate, review time, tool failures and escaped defects over a fixed observation window. Measure the cost of investigating false alarms. No reduction in defects or release time is claimed here.
+
+## Boundaries
+
+A successful audit does not verify source truth, business definitions, Power BI Desktop runtime behavior or complete credential safety.
+
+## Engineering evidence
+
+[Architecture and defensive programming](docs/engineering/ENGINEERING.md) · [External evaluation protocol](CASE_STUDY.md) · [Reusable README template](docs/engineering/README.template.md)
 
 ## Current rules
 
