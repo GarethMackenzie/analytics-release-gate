@@ -5,6 +5,7 @@ from pathlib import Path
 
 from analytics_release_gate.models import Finding, Status
 from analytics_release_gate.parsers import parse_json, parse_pbip
+from analytics_release_gate.parsers.discovery import discover, model_files
 
 _TEXT_SUFFIXES = {".json", ".tmdl", ".dax", ".m", ".pq", ".txt", ".md", ".yaml", ".yml"}
 _ABSOLUTE_PATTERNS = [
@@ -15,7 +16,7 @@ _ABSOLUTE_PATTERNS = [
 
 
 def check_pbip_manifest(root: Path) -> list[Finding]:
-    files = list(root.glob("*.pbip"))
+    files = [p for p in discover(root) if p.suffix.lower() == ".pbip" and p.is_file()]
     if not files:
         return [Finding.for_path(root=root, rule_id="PBI001", status=Status.PASS,
             title="PBIP not applicable", message="No PBIP project was detected; rule is not applicable.")]
@@ -34,12 +35,17 @@ def check_pbip_manifest(root: Path) -> list[Finding]:
 
 
 def check_pbir_json(root: Path) -> list[Finding]:
-    report_dirs = [path for path in root.glob("*.Report") if path.is_dir()]
+    report_dirs = [path for path in discover(root) if path.name.endswith(".Report") and path.is_dir()]
     if not report_dirs:
         return [Finding.for_path(root=root, rule_id="PBI002", status=Status.PASS,
             title="PBIR not applicable", message="No source-controlled Power BI report directory was detected.")]
 
-    json_files = [path for report in report_dirs for path in report.rglob("*.json")]
+    json_files = [path for report in report_dirs for path in discover(report)
+                  if path.is_file() and (path.suffix.lower() == ".json" or path.name == "definition.pbir")]
+    empty = [report for report in report_dirs if not any(report in p.parents for p in json_files)]
+    if empty:
+        return [Finding.for_path(root=root, rule_id="PBI002", status=Status.FAIL,
+            title="PBIR JSON missing", message="Report directory contains no supported JSON metadata.", path=p) for p in empty]
     if not json_files:
         return [Finding.for_path(root=root, rule_id="PBI002", status=Status.FAIL,
             title="PBIR JSON missing", message="A report directory exists but contains no JSON files.", path=report_dirs[0])]
@@ -58,8 +64,8 @@ def check_pbir_json(root: Path) -> list[Finding]:
 
 
 def check_tmdl_model(root: Path) -> list[Finding]:
-    pbip_files = list(root.glob("*.pbip"))
-    tmdl_files = list(root.glob("*.SemanticModel/definition/**/*.tmdl"))
+    pbip_files = [p for p in discover(root) if p.suffix.lower() == ".pbip" and p.is_file()]
+    tmdl_files = model_files(root)
     if not pbip_files:
         return [Finding.for_path(root=root, rule_id="PBI003", status=Status.PASS,
             title="TMDL not applicable", message="No PBIP project was detected; rule is not applicable.")]
@@ -81,8 +87,8 @@ def check_absolute_paths(root: Path) -> list[Finding]:
             continue
         try:
             lines = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
-        except OSError:
-            continue
+        except OSError as exc:
+            raise ValueError(f"Scan incomplete: cannot read {path.relative_to(root)}") from exc
         for line_number, line in enumerate(lines, start=1):
             if any(pattern.search(line) for pattern in _ABSOLUTE_PATTERNS):
                 findings.append(Finding.for_path(root=root, rule_id="PBI004", status=Status.FAIL,

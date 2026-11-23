@@ -24,6 +24,11 @@ class Finding:
     evidence: str | None = None
     recommendation: str | None = None
 
+    def __post_init__(self) -> None:
+        # Source snippets can contain credentials, including patterns we do not recognize.
+        # Keep the field for report compatibility but never retain source contents.
+        object.__setattr__(self, "evidence", None)
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 

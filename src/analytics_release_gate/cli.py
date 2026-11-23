@@ -43,18 +43,18 @@ def main(argv: list[str] | None = None) -> int:
         config = load_config(root.resolve(), args.config)
         report = audit_repository(root, config)
         rendered = _render(args.format, report)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(rendered + "\n", encoding="utf-8")
+        else:
+            print(rendered)
     except (OSError, ValueError) as exc:
-        print(f"argate: configuration/input error: {exc}", file=sys.stderr)
+        print(f"argate: configuration/input/output error: {exc}", file=sys.stderr)
         return 2
     except Exception as exc:  # defensive boundary for CLI consumers
         print(f"argate: internal error: {exc}", file=sys.stderr)
         return 3
 
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(rendered + "\n", encoding="utf-8")
-    else:
-        print(rendered)
     return 1 if report.has_failures else 0
 
 

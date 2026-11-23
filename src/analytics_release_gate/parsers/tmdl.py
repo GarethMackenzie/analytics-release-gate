@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-_MEASURE = re.compile(r"^\s*measure\s+(?:'([^']+)'|([^=]+?))\s*=", re.IGNORECASE)
+_MEASURE = re.compile(r"^\s*measure\s+(?:'((?:[^']|'')+)'|([^=]+?))\s*=", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,6 +13,7 @@ class MeasureBlock:
     path: Path
     start_line: int
     text: str
+    description: str = ""
 
 
 def iter_measure_blocks(path: Path) -> list[MeasureBlock]:
@@ -24,9 +25,24 @@ def iter_measure_blocks(path: Path) -> list[MeasureBlock]:
             starts.append((index, (match.group(1) or match.group(2) or "").strip()))
 
     blocks: list[MeasureBlock] = []
-    for position, (start, name) in enumerate(starts):
-        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
-        blocks.append(
-            MeasureBlock(name=name, path=path, start_line=start + 1, text="\n".join(lines[start:end]))
-        )
+    for start, name in starts:
+        indent = len(lines[start]) - len(lines[start].lstrip())
+        end = start + 1
+        while end < len(lines):
+            current = lines[end]
+            if current.strip() and len(current) - len(current.lstrip()) <= indent:
+                break
+            end += 1
+        comments: list[str] = []
+        preceding = start - 1
+        while preceding >= 0:
+            current = lines[preceding]
+            if (len(current) - len(current.lstrip()) != indent
+                    or not current.lstrip().startswith("///")):
+                break
+            comments.append(current.lstrip()[3:].strip())
+            preceding -= 1
+        blocks.append(MeasureBlock(name=name.replace("''", "'"), path=path,
+            start_line=start + 1, text="\n".join(lines[start:end]),
+            description="\n".join(reversed(comments))))
     return blocks

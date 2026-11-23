@@ -24,8 +24,8 @@ def check_secrets(root: Path) -> list[Finding]:
             continue
         try:
             lines = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
-        except OSError:
-            continue
+        except OSError as exc:
+            raise ValueError(f"Scan incomplete: cannot read {path.relative_to(root)}") from exc
         for number, line in enumerate(lines, start=1):
             for label, pattern in _SECRET_PATTERNS:
                 if pattern.search(line):
@@ -50,8 +50,8 @@ def check_sensitive_home_paths(root: Path) -> list[Finding]:
             continue
         try:
             lines = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
-        except OSError:
-            continue
+        except OSError as exc:
+            raise ValueError(f"Scan incomplete: cannot read {path.relative_to(root)}") from exc
         for number, line in enumerate(lines, start=1):
             if pattern.search(line):
                 findings.append(Finding.for_path(root=root, rule_id="SEC002", status=Status.WARNING,
