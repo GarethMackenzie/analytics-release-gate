@@ -5,12 +5,13 @@ from pathlib import Path
 
 from analytics_release_gate.models import Finding, Status
 from analytics_release_gate.parsers import iter_measure_blocks
+from analytics_release_gate.parsers.discovery import model_files
 
 _NUMERIC_LITERAL = re.compile(r"(?<![A-Za-z0-9_])(?:\d{8,}|\d+\.\d{4,})(?![A-Za-z0-9_])")
 
 
 def _measure_sources(root: Path) -> list[Path]:
-    return [*root.rglob("*.dax"), *root.glob("*.SemanticModel/definition/**/*.tmdl")]
+    return [*root.rglob("*.dax"), *model_files(root)]
 
 
 def check_hardcoded_comparators(root: Path) -> list[Finding]:
@@ -18,8 +19,8 @@ def check_hardcoded_comparators(root: Path) -> list[Finding]:
     for path in _measure_sources(root):
         try:
             lines = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
-        except OSError:
-            continue
+        except OSError as exc:
+            raise ValueError(f"Scan incomplete: cannot read {path.relative_to(root)}") from exc
         for number, line in enumerate(lines, start=1):
             stripped = line.strip()
             if not stripped or stripped.startswith("//"):
@@ -38,7 +39,7 @@ def check_hardcoded_comparators(root: Path) -> list[Finding]:
 
 
 def check_measure_descriptions(root: Path) -> list[Finding]:
-    tmdl_files = list(root.glob("*.SemanticModel/definition/**/*.tmdl"))
+    tmdl_files = model_files(root)
     if not tmdl_files:
         return [Finding.for_path(root=root, rule_id="DAX002", status=Status.PASS,
             title="Measure descriptions not applicable", message="No TMDL semantic model was detected.")]
@@ -48,7 +49,7 @@ def check_measure_descriptions(root: Path) -> list[Finding]:
     for path in tmdl_files:
         for block in iter_measure_blocks(path):
             measure_count += 1
-            if "description =" not in block.text.lower():
+            if not block.description.strip():
                 missing.append(Finding.for_path(root=root, rule_id="DAX002", status=Status.WARNING,
                     title="Measure description missing", message=f"Measure '{block.name}' has no description in its TMDL block.",
                     path=path, line=block.start_line,
